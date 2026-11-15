@@ -1,53 +1,49 @@
 function results = run_mimo_project(profile)
-% RUN_MIMO_PROJECT  Entry point for the 2026 MIMO spatial-multiplexing BTL.
-% Author(s): [Add group members and student IDs].
-%
-%   run_mimo_project('demo')  Fast end-to-end run (NOT report-quality BER).
-%   run_mimo_project('full')  Full Monte Carlo run for the final report.
-%   run_mimo_project          Equivalent to 'full'.
-%
-% MATLAB R2018a+; base MATLAB only. All detectors are programmed from
-% matrix formulas. Do not use Communications Toolbox equalizer functions.
+% RUN_MIMO_PROJECT  Self-test, simulation, output tables and checked plots.
+% Author(s): [Insert authors and student IDs before submission].
+%   run_mimo_project('demo') : smoke test only, separate output folders.
+%   run_mimo_project('full') : report-quality full run.
+%   run_all_and_zip('full')  : full run + verified output ZIP.
 
-    if nargin < 1 || isempty(profile)
-        profile = 'full';
-    end
+    if nargin<1 || isempty(profile), profile='full'; end
     p = mimo_parameters(profile);
-    scriptDir = fileparts(mfilename('fullpath'));
-    projectRoot = fileparts(scriptDir);
-    resultDir = fullfile(projectRoot, 'results');
-    if ~exist(resultDir,'dir')
-        mkdir(resultDir);
-    end
-    if ~exist(fullfile(projectRoot,'figures'),'dir')
-        mkdir(fullfile(projectRoot,'figures'));
-    end
+    codeDir = fileparts(mfilename('fullpath'));
+    rootDir = fileparts(codeDir);
+    resultDir = fullfile(rootDir,p.resultFolder);
+    figureDir = fullfile(rootDir,p.figureFolder);
+    if ~exist(resultDir,'dir'),mkdir(resultDir);end
+    if ~exist(figureDir,'dir'),mkdir(figureDir);end
 
-    logFile = fullfile(resultDir,['run_log_',p.profile,'.txt']);
     diary('off');
+    logFile = fullfile(resultDir,['run_log_',p.profile,'.txt']);
     diary(logFile);
-    diaryCleanup = onCleanup(@() diary('off')); %#ok<NASGU>
+    diaryCleaner = onCleanup(@() diary('off')); %#ok<NASGU>
 
-    fprintf('MIMO SPATIAL MULTIPLEXING 2026 - %s PROFILE\n',upper(p.profile));
+    fprintf('MIMO SPATIAL MULTIPLEXING 2026 - %s\n',upper(p.profile));
     fprintf('MATLAB version: %s\n',version);
-    fprintf('No Communications Toolbox required.\n');
-    fprintf('Model: Y=H*X+Z; iid Rayleigh H, BPSK Es=1, AWGN CN(0,N0).\n');
-    fprintf('Horizontal axis: per-stream Es/N0 (dB).\n');
-    fprintf('Nr cases:'); fprintf(' %d',p.NrList); fprintf('; Nt=%d.\n',p.Nt);
-    fprintf('Block fading; independent channels across blocks; perfect CSI.\n');
-    fprintf('Seed=%d, minimum fades=%d, target errors=%d, bit budget=%d.\n\n', ...
+    fprintf('No Communications Toolbox used.\n');
+    fprintf('Y=H*X+Z; Rayleigh H; BPSK Es=1; complex AWGN CN(0,N0).\n');
+    fprintf('Per-stream Es/N0(dB) horizontal axis; Nt=%d; Nr =',p.Nt);
+    fprintf(' %d',p.NrList);
+    fprintf('\n');
+    fprintf('Seed=%d; min fades=%d; min errors=%d; max bits=%d.\n', ...
         p.seed,p.minBlocks,p.minErrors,p.maxBits);
+    fprintf('Desired relative 95%% CI half-width <= %.0f%%.\n\n', ...
+        100*p.targetRelHalfWidth);
 
     run_self_tests();
     results = simulate_mimo_ber(p);
-    [~, summaryTable] = export_mimo_results(results,projectRoot);
-    plot_mimo_results(results,projectRoot);
+    [~,summaryTable] = export_mimo_results(results,rootDir);
+    plot_mimo_results(results,rootDir);
 
-    fprintf('\nTarget BER = %.1e, estimated Es/N0 thresholds:\n',p.targetBER);
+    % Never report success if any output image was empty or invalid.
+    validate_mimo_outputs(rootDir,p.profile);
+
+    fprintf('\nBER target %.1e: interpolated SNR thresholds (dB)\n',p.targetBER);
     disp(summaryTable(:,{'Nr','Detector','RequiredEsN0_dB'}));
-    fprintf('\nDONE. Numerical data: %s\n',resultDir);
-    fprintf('Figures (PNG + vector PDF): %s\n',fullfile(projectRoot,'figures'));
+    fprintf('PASS: all 8 PNG, all 8 PDF, all 8 FIG files verified.\n');
+    fprintf('Data folder: %s\nFigure folder: %s\n',resultDir,figureDir);
     if strcmp(p.profile,'demo')
-        fprintf('WARNING: demo has a small bit budget. Run ''full'' for the report.\n');
+        fprintf('WARNING: demo results are NOT for the final report.\n');
     end
 end

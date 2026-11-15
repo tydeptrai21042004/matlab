@@ -1,116 +1,122 @@
-MIMO SPATIAL MULTIPLEXING - MATLAB PROJECT (2026)
-================================================
-Authors: [Fill in group members and student IDs before submission]
-MATLAB: R2018a / R2018b or later, base MATLAB functions only.
-No Communications Toolbox, Simulink, or additional toolbox required.
+MIMO SPATIAL MULTIPLEXING - CORRECTED MATLAB PROJECT (2026)
+============================================================
+MATLAB R2018a or newer. Base MATLAB only; NO Communications Toolbox.
+Authors: [Fill in student names / IDs before submitting].
 
-1. PROJECT PURPOSE
-------------------
-Rayleigh-fading spatial multiplexing, Nt=4 and Nr=4,5,6.
-One independent BPSK stream from each transmit antenna.
-Receiver detectors: Zero-Forcing (ZF), MMSE, MRC/Matched Filter.
-Monte Carlo BER vs. Es/N0 and exact ZF theoretical BER comparison.
+START HERE
+----------
+Open MATLAB, navigate to this project's code/ folder, then run:
 
-2. RUN IN MATLAB
+    run_all_and_zip('demo')  % quick smoke test; separate folders
+    run_all_and_zip('full')  % complete simulation and verified ZIP
+
+For the actual report, ALWAYS use the FULL run outputs.
+
+One command, complete output:
+    run_all_and_zip('full')
+
+Outputs in project root:
+    MIMO_ALL_RESULTS_FULL.zip         (validated ZIP, re-opened for checks)
+    results/mimo_full_results.mat
+    results/mimo_ber_results.csv
+    results/zf_theory_validation.csv
+    results/ber_target_snr_summary.csv
+    results/interpretation_notes.txt
+    results/run_log_full.txt
+    figures/8 x PNG (300 dpi)
+    figures/8 x PDF (vector if supported)
+    figures/8 x FIG (editable native MATLAB figures)
+
+To REBUILD ONLY FIGURES from a corrected-code MAT result:
+    rebuild_figures_and_zip('full')
+This does NOT rerun the Monte Carlo simulation. The MAT result must have
+been produced by the corrected version of simulate_mimo_ber.m.
+
+GITHUB CLONE IN MATLAB COMMAND WINDOW
+-------------------------------------
+In MATLAB Drive, after YOU have uploaded/committed this corrected code
+on GitHub, use these commands (paste the raw URL, not a Markdown link):
+
+    cd('/MATLAB Drive');
+    [status, message] = system('git clone https://github.com/tydeptrai21042004/matlab.git');
+    assert(status == 0, '%s', message);
+    cd(fullfile(pwd,'matlab','code'));
+    run_all_and_zip('full');
+
+If you already cloned the repository, update with git pull (after saving
+any local edits), then cd into its code folder and run the final command.
+
+MODEL / SNR
+-----------
+Y = H*X + Z, Nt=4, Nr=4,5,6. Four DIFFERENT concurrent BPSK streams.
+H_ij ~ CN(0,1) independently each fading block; z_i ~ CN(0,N0).
+Es=1 per transmit stream; N0=10^(-EsN0dB/10); sum Tx power=Nt=4.
+The x axis is Es/N0 PER TRANSMIT STREAM, not total received SNR.
+Rayleigh block fading, exact receiver CSI, perfect timing and synchronization.
+
+ZF:  W = (H'*H)^(-1)*H'; implemented through H \\ eye(Nr) for stability.
+MMSE: W = (H'*H+N0*I)^(-1)*H'; implemented using left division.
+MRC/MF: W = H' (positive gain-normalized); it cannot cancel interference.
+The theoretical ZF BER is exact for this BPSK, i.i.d. Rayleigh model.
+The detector weights are derived and implemented without communication
+receiver/equalizer functions from any specialized toolbox.
+
+STATISTICAL PRECISION
+---------------------
+The full run uses:
+    p.blockSymbols = 128
+    p.minBlocks = 2000 (INDEPENDENT Rayleigh fades per SNR/config)
+    p.minErrors = 200 (desired in EACH detector)
+    p.targetRelHalfWidth = 0.20 (95% CI relative half-width target)
+    p.maxBits = 16000000 (per SNR/config, maximum budget)
+
+The algorithm can stop early only after sufficient fades, enough errors
+and a confidence-interval width check, or at the bit budget. CI/SE use
+independent fading blocks as clusters (not iid transmitted bits).
+If the budget is exhausted with unresolved precision, output flags say so.
+Even 16M bits cannot guarantee statistical precision for arbitrarily low BER.
+
+FIGURE EXPORT FIX
+-----------------
+The original code sometimes produced 0-byte PNG/PDF images in MATLAB Online.
+The corrected export_figure_checked.m tries exportgraphics (R2020a+),
+then print, then saveas; waits for file completion; checks file size and
+PNG/PDF binary signatures; saves a FIG; and errors if an export fails.
+The final ZIP is reopened and all files checked again. There is NO silent
+"success" after a 0-byte figure export.
+
+DEMO SAFE
+---------
+The demo run writes results_demo/ and figures_demo/, and produces
+MIMO_ALL_RESULTS_DEMO.zip. It does not overwrite full-run outputs.
+
+SOURCE FILES
+------------
+code/run_all_and_zip.m         Full simulation + verified ZIP
+code/run_mimo_project.m       Self-test, simulation, export, plotting
+code/mimo_parameters.m        Central simulation profile
+code/mimo_filters.m           ZF/MMSE/MRC matrices
+code/mimo_post_sinr.m         Per-stream SINR
+code/simulate_mimo_ber.m      Monte Carlo, block-aware uncertainty
+code/zf_bpsk_theory.m         Analytical ZF BER
+code/estimate_snr_threshold.m BER threshold interpolation
+code/export_mimo_results.m   MAT/CSV and interpretation notes
+code/plot_mimo_results.m     Eight results figures
+code/export_figure_checked.m Verified PNG/PDF/FIG export
+code/validate_mimo_outputs.m Checks file count, length, signatures
+code/package_mimo_results.m Verified result ZIP
+code/rebuild_figures_and_zip.m Re-export figures from correct MAT
+code/run_self_tests.m        Analytical/unit consistency tests
+
+REPORT AND VIDEO
 ----------------
-Open MATLAB > Home > Set Path/Current Folder to the 'code' folder.
-In the MATLAB Command Window type:
+HUONG_DAN_BAO_CAO.md and HUONG_DAN_THUYET_TRINH.md are guides, NOT
+completed assignment deliverables. The final assignment also asks for a
+15-25-page report, Slide.pdf, a 10-15-minute video and a formatted final
+DAMH2026_MSSV_HoTen.zip. Follow the course's attribution/AI-use rules.
 
-    run_mimo_project('demo')
-
-This runs all three configurations and methods quickly, but is only a
-functional smoke test and does not provide final-quality low BER statistics.
-For results to use in your report, type:
-
-    run_mimo_project('full')
-
-Or simply:
-
-    run_mimo_project
-
-The full run may take significantly longer, depending on the computer.
-The maximum bit count is limited to four million bits per SNR/configuration.
-
-A consistent seed is used, so re-running the same profile with the same
-MATLAB RNG implementation reproduces the numerical data. Execution times
-are not expected to be identical.
-
-3. FILES
---------
-code/run_mimo_project.m        - Main entry point, logs, tests, orchestration
-code/mimo_parameters.m        - One place for all simulation parameters
-code/mimo_filters.m           - Matrix-based implementations of ZF/MMSE/MRC
-code/mimo_post_sinr.m         - Post-filter SINR formula
-code/simulate_mimo_ber.m      - Full Monte Carlo engine
-code/zf_bpsk_theory.m         - Exact theoretical BPSK/ZF average BER
-code/estimate_snr_threshold.m- BER threshold estimation without zero tricks
-code/export_mimo_results.m   - MAT/CSV files and quantitative comparison
-code/plot_mimo_results.m     - Grayscale BER/SINR figures, PNG and PDF
-code/run_self_tests.m        - Internal formula/implementation consistency tests
-HUONG_DAN_BAO_CAO.md         - Report structure, mathematical derivations
-HUONG_DAN_THUYET_TRINH.md    - 10-15 min video plan and defense questions
-CHECKLIST_DE_BAI.txt         - Requirement-by-requirement audit
-
-4. GENERATED FILES (AFTER YOU ACTUALLY RUN MATLAB)
---------------------------------------------------
-results/mimo_full_results.mat      - All parameters, arrays, counts, timings
-results/mimo_ber_results.csv       - BER, errors, counts, SINR, runtime
-results/zf_theory_validation.csv   - Measured vs exact analytical ZF BER
-results/ber_target_snr_summary.csv - SNR for target BER=1e-2
-results/interpretation_notes.txt   - Interpretation and caveats
-results/run_log_full.txt           - Command Window full-run trace
-figures/Fig_Detectors_4x4(.png/.pdf)
-figures/Fig_Detectors_4x5(.png/.pdf)
-figures/Fig_Detectors_4x6(.png/.pdf)
-figures/Fig_ZF_AntennaComparison(.png/.pdf)
-figures/Fig_MMSE_AntennaComparison(.png/.pdf)
-figures/Fig_MRC_AntennaComparison(.png/.pdf)
-figures/Fig_ZF_TheoryValidation(.png/.pdf)
-figures/Fig_PostDetectorSINR(.png/.pdf)
-
-5. MODEL/SNR CONVENTION
------------------------
-Y = H*X + Z; H_ij ~ CN(0,1), one independent H per fading block.
-BPSK X_ij is -1 or +1 with Es=1 per transmit stream.
-Z_ij ~ CN(0,N0), implemented using sqrt(N0/2)*(randn+1i*randn).
-Es/N0 (per transmit stream) = 10^(EsN0dB/10) and N0=1/(Es/N0).
-Total transmit energy per channel use is Nt (4). Nt stays FIXED in
-all plotted antenna comparisons. Thus no hidden power variation across Nr.
-Perfect receiver CSI; transmitters do not know H.
-The detector outputs are hard decision in BPSK: real(W*Y) >= 0.
-
-6. SCIENTIFIC CAUTIONS
-----------------------
-- MATLAB detector blocks are implemented directly from matrix equations,
-  not from built-in detection/equalizer functions.
-- MRC in spatial multiplexing is a matched filter; it cannot remove
-  interference between simultaneously transmitted streams.
-- Block fading means errors within the same channel block can correlate.
-  We also require a minimum number of independently faded blocks.
-- A measured BER=0 means zero errors OBSERVED in finite trials; figures
-  omit those points on a log axis instead of pretending that BER=0.
-- If LowErrorCount=true, a detector has fewer than the desired 200 errors
-  and the BER estimate has limited numerical precision. Extend maxBits
-  in mimo_parameters.m and repeat the full experiment when needed.
-- If the required SNR threshold is NaN, a measured positive BER crossing
-  was not observed. Do not invent a numerical crossing.
-- The theory comparison is exact for the stated channel and BPSK/ZF
-  assumptions. It is not automatically the BER theory for MMSE or MRC.
-
-7. REPORT/VIDEO
----------------
-This ZIP contains REAL SOURCE CODE and writing/speaking GUIDES, not a
-completed report/video. The students must run MATLAB, inspect figures,
-write their own explanations, create their own presentation, and understand
-all code/assumptions. Follow the school's requirements for attribution,
-original work and declaring any AI assistance.
-
-8. SUBMISSION CHECK
--------------------
-The assignment requests the archive format DAMH2026_MSSV_HoTen.zip with:
-  BaoCao.pdf (include video URL on cover)
-  code/ (MATLAB scripts and README.txt)
-  figures/ (figures actually included in the report)
-  simulated result data (.mat or .csv)
-  Slide.pdf (presentation used in the video)
-Please build the final submission archive from the files you actually use.
+IMPORTANT LIMITATION
+--------------------
+No MATLAB executable is available in the ChatGPT build environment.
+The code has been inspected and mathematical checks performed, but you
+must execute MATLAB and verify your numerical output in MATLAB R2018+.

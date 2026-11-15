@@ -1,21 +1,21 @@
 function [Wzf, Wmmse, Wmrc] = mimo_filters(H, N0)
-% MIMO_FILTERS  ZF, MMSE and MRC/matched-filter weights from the formulas.
-% Author(s): [Add group members and student IDs].
-% No communications toolbox or built-in equalizer is used.
-% H: Nr-by-Nt, W: Nt-by-Nr, N0: noise variance per complex Rx sample.
+% MIMO_FILTERS  Hand-coded linear detection matrices, no equalizer toolbox.
+% Author(s): [Insert authors and student IDs before submission].
+% H is Nr-by-Nt; W matrices are Nt-by-Nr.
+% ZF formula: (H'*H)^(-1)*H'; MATLAB \ uses QR for better stability.
+% MMSE: (H'*H + N0*I)^(-1)*H'; MRC/MF: per-column matched filter.
 
-    Nt = size(H, 2);
-    Gram = H' * H;
+    [Nr,Nt] = size(H);
+    if Nr < Nt || N0 < 0
+        error('Require Nr>=Nt and N0>=0.');
+    end
     Hh = H';
+    Gram = Hh*H;
 
-    % Never use inv(Gram): the backslash solves the equivalent systems.
-    Wzf = Gram \ Hh;
+    % Numerically better than explicitly forming inv(H'*H)*H'.
+    Wzf = H \ eye(Nr);
     Wmmse = (Gram + N0*eye(Nt)) \ Hh;
 
-    % For spatial multiplexing, MRC is a matched filter, NOT interference-
-    % cancelling diversity combining. Its other streams remain interference.
-    % Desired gain h_i^H*h_i is real and positive, so normalization leaves
-    % hard BPSK decisions unchanged while fixing the output amplitude.
-    channelGains = real(diag(Gram));
-    Wmrc = bsxfun(@rdivide, Hh, channelGains);
+    desiredGain = real(diag(Gram));
+    Wmrc = bsxfun(@rdivide, Hh, max(desiredGain, eps));
 end

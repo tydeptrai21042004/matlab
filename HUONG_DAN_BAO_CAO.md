@@ -124,10 +124,10 @@ Trong ba cấu hình đã chọn, `d=1,2,3`. Do vậy độ dốc đường BER 
 4. Tạo một ma trận `H` Rayleigh và AWGN phức `Z`; tính `Y=H*X+Z`.
 5. Tính `W_ZF`, `W_MMSE`, `W_MRC` từ **cùng `H`**, áp dụng trên **cùng `Y`**.
 6. Quyết định bit theo dấu phần thực; đếm sai khác so với bit phát.
-7. Lặp cho tới khi đạt đủ số kênh fading và lỗi, hoặc đến giới hạn `maxBits`.
+7. Lặp ít nhất `2000` khối fading độc lập (cấu hình `full`), tiếp tục cho đến khi đủ số lỗi và độ rộng khoảng tin cậy 95% theo khối đạt mục tiêu, hoặc khi hết ngân sách `maxBits`.
 8. Lưu BER, số bit, số lỗi, SINR, thời gian; tính lý thuyết ZF; tạo bảng và đồ thị.
 
-Tất cả số liệu lấy trực tiếp từ chương trình, không gán cứng vào kết quả. Số bit và số lỗi được lưu để đánh giá độ tin cậy. Khi một điểm có quá ít lỗi, báo cáo cần nêu giới hạn và tăng `p.maxBits` nếu cần.
+Tất cả số liệu lấy trực tiếp từ chương trình, không gán cứng vào kết quả. Số bit và số lỗi được lưu để đánh giá độ tin cậy. Mỗi khối fading được xem là một mẫu độc lập khi ước lượng sai số chuẩn; các bit trong cùng khối không bị giả định độc lập. Các cột `BER_*_CI95_L/U` và `*_RelCI95` thể hiện khoảng tin cậy xấp xỉ 95% và độ rộng tương đối. Khi không quan sát lỗi, không kết luận BER thực bằng 0. Nếu một điểm chưa đạt mục tiêu về số lỗi/độ rộng khoảng tin cậy, nêu rõ giới hạn và tăng `p.maxBits` nếu cần.
 
 ## 5. Độ phức tạp tính toán
 
@@ -139,7 +139,7 @@ Tất cả số liệu lấy trực tiếp từ chương trình, không gán c�
 | MMSE | `O(Nr*Nt^2 + Nt^3)` | Thêm ma trận `N0*I` vào Gram trước khi giải hệ |
 | MRC/MF | `O(Nr*Nt)` | Tích vô hướng từng cột và chuẩn hóa; không cần nghịch đảo |
 
-Mỗi detector đều cần `O(Nt*Nr*K)` để xử lý một khối nhận `Y` gồm `K` thời điểm ký hiệu. Trong chương trình hiện tại, Gram được tính chung cho cả ba detector để tránh tính lặp.
+Mỗi detector đều cần `O(Nt*Nr*K)` để xử lý một khối nhận `Y` gồm `K` thời điểm ký hiệu. Mã thực hiện ZF bằng phép giải bình phương tối thiểu `H \ eye(Nr)` (đại số tương đương ma trận ZF), nhằm tránh bình phương số điều kiện khi hình thành Gram. Gram được tái sử dụng để tính MMSE và chuẩn hóa MRC.
 
 ## 6. Bố cục báo cáo gợi ý (15–25 trang)
 

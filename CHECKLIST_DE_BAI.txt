@@ -1,41 +1,31 @@
-CHECKLIST - DO AN MON HOC MIMO SPATIAL MULTIPLEXING (2026)
-=========================================================
+CHECKLIST - MIMO SPATIAL MULTIPLEXING ASSIGNMENT (2026)
+======================================================
+[code] Four independent BPSK streams on Nt=4 antennas
+[code] Three Rx cases: Nr=4,5,6 (all Nr >= Nt)
+[code] Explicit per-stream Es/N0 and total-power policy
+[code] Rayleigh iid block fading; complex AWGN CN(0,N0); perfect CSI
+[code] ZF / MMSE / MRC (matched filter) via matrix formulas; no equalizer toolbox
+[code] SINR formula includes inter-stream interference and output noise
+[code] Monte Carlo BER at 12 SNR points, -10:2:12 dB
+[code] Exact BPSK ZF theory, d=Nr-Nt+1, checked with numerical integral
+[code] Theory / simulation comparison and statistical confidence intervals
+[code] At least 2000 independent fades (full), adaptive errors/CI stopping
+[code] Same bits, channel and noise for all three detectors (paired tests)
+[code] Three detector-comparison graphs; three Rx-comparison graphs
+[code] One ZF theory graph; one SINR graph (8 graphs total)
+[code] MAT, CSV, log and interpretation notes
+[code] PNG/PDF binary signature and nonzero file verification
+[code] Automatic re-open-and-validate of full results ZIP
+[code] Separate full and demo folders; demo never overwrites full
+[code] Central parameters, reproducible RNG seed, modular comments
 
-MATLAB SIMULATION: PROVIDED IN code/ (requires execution in MATLAB)
-[yes] At least two independent transmit streams (Nt=4)
-[yes] Three receive antenna configurations (Nr=4,5,6; Nr>=Nt)
-[yes] Explain BPSK normalized Es=1 per stream
-[yes] Explicit total transmit power policy, Nt kept constant
-[yes] Flat Rayleigh iid CN(0,1) channel, one H per fading block
-[yes] Proper complex AWGN with N0 per receive antenna
-[yes] Clear per-stream Es/N0 convention
-[yes] Perfect CSI (explicit modeling assumption)
-[yes] ZF matrix formula implementation; not a built-in equalizer
-[yes] MMSE matrix formula implementation; not a built-in equalizer
-[yes] MRC/Matched Filter matrix formula; no interference cancellation claim
-[yes] Monte Carlo BER with same bits, H and noise across algorithms
-[yes] Independent fading blocks, seed, stop criteria and max bit budget
-[yes] Exact ZF BER theory comparison, all antenna configurations
-[yes] Detector SINR computed from full interference + noise formula
-[yes] BER vs Es/N0 for all three methods in each antenna configuration
-[yes] BER vs Es/N0 for all three antenna configurations in each method
-[yes] ZF vs analytical BER graph and CSV validation
-[yes] BER target threshold quantitative comparison table
-[yes] High-resolution PNG + vector PDF for figures
-[yes] CSV, MAT, runtime, logged run, quick self tests
-[yes] Code separated by functions, configurable parameters, comments
+PENDING: REQUIRED HUMAN DELIVERABLES
+[ ] Actually execute run_all_and_zip('full') in MATLAB, inspect results
+[ ] Inspect residual uncertainty flags and ZF theoretical validation
+[ ] Write and review 15-25-page report, original reasoning and citation
+[ ] Create Slide.pdf and 10-15-minute group presentation video
+[ ] Upload/check video link; add link to report cover and README
+[ ] Declare AI tools used, as required by assignment
+[ ] Add author names/student IDs and final submission ZIP name
 
-WRITTEN AND PRESENTED DELIVERABLES: STUDENT ACTIONS REMAINING
-[ ] Run MATLAB full profile; verify figures and statistical precision
-[ ] Write original report (recommended 15-25 pages) using theory guide
-[ ] Cite references, formulas, images, and any assistance appropriately
-[ ] Analyze actual results rather than guessing or fabricating them
-[ ] Create report block diagram / procedure diagram
-[ ] Build and present slides; export Slide.pdf
-[ ] Record 10-15 minute video with required presenter appearances
-[ ] Upload unlisted video and confirm URL is accessible anonymously
-[ ] Add video URL to report cover and README in final submission
-[ ] Organize final archive as DAMH2026_MSSV_HoTen.zip
-
-Assignment stated delivery deadline: 20 Nov 2026, before 23:59.
-The source code ALONE does not satisfy the report/video submission criteria.
+Submission deadline specified in the PDF: 20 Nov 2026, 23:59.

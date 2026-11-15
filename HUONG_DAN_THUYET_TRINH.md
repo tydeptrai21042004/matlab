@@ -16,7 +16,7 @@
 
 ## 2. Trình diễn MATLAB
 
-**Chuẩn bị trước:** chạy `run_mimo_project('full')` để tạo toàn bộ dữ liệu chính thức. Sau đó trong video chạy `run_mimo_project('demo')` chỉ để minh họa nhanh **nếu cần**. Lưu ý demo sẽ ghi đè các file kết quả cùng tên trong `figures/` và `results/`, vì vậy **sao lưu kết quả full trước khi chạy demo**, hoặc chỉ trình diễn phần code và các hình full đã có. Muốn kết thúc với bộ dữ liệu chính thức, chạy lại full.
+**Chuẩn bị trước:** chạy `run_all_and_zip('full')` để tạo dữ liệu chính thức và ZIP đã kiểm tra. Trong video có thể chạy `run_mimo_project('demo')` để minh họa nhanh. **Bản đã sửa lưu demo riêng trong `results_demo/`, `figures_demo/`, không ghi đè dữ liệu full.** Kết quả demo không dùng làm chứng cứ định lượng trong báo cáo.
 
 Có thể trình diễn cửa sổ Command Window với thông tin cấu hình `4x4`, `4x5`, `4x6`; sau đó mở `Fig_ZF_TheoryValidation.pdf` và `ber_target_snr_summary.csv`. Không cần giả vờ chạy full ngay trong video.
 
