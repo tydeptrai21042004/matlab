@@ -33,6 +33,21 @@ function results = run_mimo_project(profile)
 
     run_self_tests();
     results = simulate_mimo_ber(p);
+    allMet = squeeze(all(results.precisionTargetMet,1));
+    countMet = nnz(allMet);
+    countTotal = numel(allMet);
+    fprintf('\nPrecision target met: %d/%d SNR/configuration cases.\n', ...
+        countMet,countTotal);
+    if countMet < countTotal
+        for c = 1:numel(p.NrList)
+            for s = 1:numel(p.snrDb)
+                if ~allMet(s,c)
+                    fprintf('  Unresolved: Nr=%d, Es/N0=%+g dB.\n', ...
+                        p.NrList(c),p.snrDb(s));
+                end
+            end
+        end
+    end
     [~,summaryTable] = export_mimo_results(results,rootDir);
     plot_mimo_results(results,rootDir);
 

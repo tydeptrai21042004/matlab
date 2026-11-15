@@ -15,6 +15,8 @@ function validate_mimo_outputs(rootDir,profile)
         check_size(fullfile(dataDir,requiredData{k}),30);
     end
 
+    check_saved_results(fullfile(dataDir,['mimo_',p.profile,'_results.mat']),p);
+
     stems = cell(1,11);
     for c = 1:3
         stems{c} = sprintf('Fig_Detectors_%dx%d',p.Nt,p.NrList(c));
@@ -85,4 +87,39 @@ function ok = signature_ok(path,kind)
     fseek(fid,max(0,bytes-4096),'bof');
     tail = fread(fid,Inf,'*uint8')';
     ok = ~isempty(strfind(char(tail),'%%EOF')); %#ok<STREMP>
+end
+
+function check_saved_results(matFile,p)
+% Verify the binary result is self-consistent; do not guess a BER floor.
+    data = load(matFile,'r');
+    if ~isfield(data,'r')
+        error('MIMO:InvalidMAT','MAT output does not contain r.');
+    end
+    r = data.r;
+    nMethods = 3;
+    nSnr = numel(p.snrDb);
+    nConfigs = numel(p.NrList);
+    if ~isequal(size(r.ber),[nMethods,nSnr,nConfigs]) || ...
+            ~isequal(size(r.bits),[nSnr,nConfigs]) || ...
+            ~isequal(size(r.errors),[nMethods,nSnr,nConfigs])
+        error('MIMO:BadDimensions','Unexpected dimensions in saved MIMO results.');
+    end
+    if any(~isfinite(r.ber(:))) || any(r.ber(:)<0) || ...
+            any(r.ber(:)>1) || any(r.bits(:)<=0)
+        error('MIMO:BadBER','Invalid BER or bit counts in saved MIMO results.');
+    end
+    for m = 1:nMethods
+        recorded = squeeze(r.ber(m,:,:));
+        reconstructed = squeeze(r.errors(m,:,:))./r.bits;
+        if any(abs(recorded(:)-reconstructed(:))>1e-12)
+            error('MIMO:InconsistentBER', ...
+                'Saved BER for detector %d differs from errors/bits.',m);
+        end
+    end
+    if ~isequal(r.p.NrList,p.NrList) || ...
+            ~isequal(r.p.snrDb,p.snrDb) || r.p.Nt~=p.Nt
+        error('MIMO:ConfigMismatch', ...
+            'MAT output and requested antenna/SNR grid differ.');
+    end
+    fprintf('PASS: MAT BER, error counts, bit counts and SNR grid agree.\n');
 end

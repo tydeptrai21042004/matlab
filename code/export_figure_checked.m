@@ -2,7 +2,7 @@ function export_figure_checked(fig,folder,stem)
 % EXPORT_FIGURE_CHECKED  Export PNG/PDF/FIG and verify binary signatures.
 % Author(s): [Insert authors and student IDs before submission].
 % Uses a local temporary export before copying to MATLAB Drive.
-% For 3D surfaces, PDF is rasterized at 300 dpi to avoid huge vector PDFs.
+% For 3D axes, PDF is rasterized at 300 dpi for reliable output.
 
     if ~exist(folder,'dir'), mkdir(folder); end
     drawnow;

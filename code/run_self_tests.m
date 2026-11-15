@@ -32,7 +32,38 @@ function run_self_tests()
             'Exact ZF BER formula differs from numerical Craig integral.');
     end
 
-    % Error-count-to-BER confidence calculation check: same errors in
-    % every block give a zero estimated between-fade variation.
-    fprintf('PASS: ZF/MMSE/noiseless bits/SINR/ZF analytic BER.\n');
+    % A direct check against independently calculated block residuals.
+    e = [2,0,1,3];
+    n = [8,8,8,8];
+    nBlocks = numel(e);
+    totalErrors = sum(e);
+    totalBits = sum(n);
+    directSE = sqrt(nBlocks/(nBlocks-1) * ...
+        sum((e - totalErrors/totalBits*n).^2))/totalBits;
+    codeSE = mimo_cluster_se(totalErrors,sum(e.^2),sum(e.*n), ...
+        sum(n.^2),totalBits,nBlocks);
+    assert(abs(codeSE-directSE)<1e-13, ...
+        'Fade-cluster BER standard error failed its independent check.');
+
+    % Independently fading channel realizations; this tests the complete
+    % channel/noise/ZF/decision chain against the analytic BPSK result.
+    % Fixed seed plus a conservative tolerance keeps this a stable test.
+    rng(73,'twister');
+    Nt = 4; Nr = 4; gamma = 1; N0 = 1/gamma;
+    nFades = 5000;
+    errors = 0;
+    for k = 1:nFades
+        b = randi([0,1],Nt,1);
+        x = 2*double(b)-1;
+        h = (randn(Nr,Nt)+1i*randn(Nr,Nt))/sqrt(2);
+        z = sqrt(N0/2)*(randn(Nr,1)+1i*randn(Nr,1));
+        w = h \ eye(Nr);
+        errors = errors + nnz((real(w*(h*x+z))>=0) ~= logical(b));
+    end
+    measured = errors/(Nt*nFades);
+    expected = zf_bpsk_theory(gamma,Nr-Nt+1);
+    assert(abs(measured-expected) < 0.025, ...
+        'Independent-fade ZF Monte Carlo does not match theoretical BER.');
+    fprintf(['PASS: ZF/MMSE/noiseless bits/SINR/analytic BER/', ...
+        'cluster SE/Monte Carlo regression.\n']);
 end

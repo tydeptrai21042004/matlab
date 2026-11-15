@@ -29,7 +29,7 @@ function p = mimo_parameters(profile)
             p.blockSymbols = 128;
             p.minBlocks = 2000;
             p.minErrors = 200;
-            p.maxBits = 16000000;
+            p.maxBits = 40000000;
             p.targetRelHalfWidth = 0.20;
             p.checkEveryBlocks = 100;
         case 'demo'
@@ -54,8 +54,14 @@ function p = mimo_parameters(profile)
     if p.Nt < 2 || numel(p.NrList) < 3 || any(p.NrList < p.Nt)
         error('Require Nt>=2 and at least 3 receive configurations with Nr>=Nt.');
     end
-    if p.Es <= 0 || p.minBlocks < 2 || p.maxBits < p.Nt*p.blockSymbols
-        error('Invalid energy or Monte Carlo settings.');
+    % The entire receiver/SINR implementation assumes BPSK Es = 1.
+    % Do not silently change only N0 while transmitted symbols remain +/-1.
+    if ~isscalar(p.Es) || ~isfinite(p.Es) || p.Es ~= 1
+        error('MIMO:InvalidEs', ...
+            'This BPSK implementation requires p.Es = 1.');
+    end
+    if p.minBlocks < 2 || p.maxBits < p.Nt*p.blockSymbols
+        error('Invalid Monte Carlo settings.');
     end
     if p.targetRelHalfWidth <= 0 || p.targetRelHalfWidth >= 1
         error('targetRelHalfWidth must be in (0,1).');

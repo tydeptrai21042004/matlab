@@ -1,31 +1,41 @@
-# Corrected MATLAB MIMO project — changes and execution
+# MATLAB MIMO 2026 — code changes and usage
 
-## Fixed from the uploaded `matlab-main.zip`
+This is the complete updated source package based on the two files supplied
+by the user (`matlab-main (1).zip` and `MIMO_ALL_RESULTS_FULL(2).zip`).
 
-1. **Empty figures:** replaced unchecked `print()` with a robust `exportgraphics` (MATLAB R2020a+) → `print()` → `saveas()` sequence, checking file sizes and PNG/PDF signatures before accepting exports.
-2. **Reproducible archive:** the result ZIP is automatically generated, extracted into a temporary directory, and rechecked. A missing/0-byte figure now fails explicitly instead of printing `ALL EXPERIMENTS COMPLETED`.
-3. **Statistical precision:** Monte Carlo uses at least 2,000 independent fading blocks in `full` mode; stopping requires sufficient observed errors and an approximate 95% confidence-interval half-width no greater than 20%, subject to a cap of 16 million bits per SNR and antenna configuration. Confidence intervals treat fading blocks, not individual bits, as independent clusters.
-4. **Zero observed errors:** does not claim zero true BER or a zero-width confidence interval. Outputs are clearly flagged as unresolved where simulation budget is insufficient.
-5. **Compatibility:** ZF uses `H \ eye(Nr)` (numerically more stable than solving the normal equations); BPSK and Rayleigh/AWGN and MMSE/MRC definitions are unchanged.
-6. **Safe `demo` mode:** demo saves to `results_demo/` and `figures_demo/` instead of overwriting full-run outputs.
-7. **Additional outputs:** 95% confidence intervals, relative CI widths, and theoretical-BER validation scores added to CSVs. Standard eight BER/SINR plots are still generated.
+## Corrections
 
-## Run from inside `code/` in MATLAB
+- Full-run Monte Carlo bit cap: 16M → **40M** per SNR/configuration. The independent-fading-block minimum, error minimum, and relative 95% CI criterion remain unchanged. This provides additional sampling for the sole unresolved configuration in the earlier data (Nr=6, 12 dB), but does not guarantee convergence.
+- The unit-energy BPSK assumption is enforced (`p.Es=1`). ZF, MMSE, and MRC/MF mathematical formulas, random seed, fading model, and SNR definition remain unchanged.
+- 2D BER plots use logarithmic axes adjusted to the measured **positive** BER range, avoiding 4–5 wasted decades. Dense minor grid lines are removed.
+- 3D figures now consist of three **discrete** SNR–Nr–logBER curves (for Nr=4,5,6), not artificially interpolated surfaces. The filenames remain the same for report compatibility.
+- The confidence interval standard-error formula was extracted to `mimo_cluster_se.m` for independent unit testing; its formula is unchanged.
+- `run_self_tests.m` additionally validates standard error arithmetic and uses a fixed-seed, independent-fade ZF Monte Carlo regression against theory.
+- `validate_mimo_outputs.m` continues validating all PDF/PNG files and now checks that the `.mat` BER values match error counts and bit counts.
+- All 11 expected figures are still exported in `.png`, `.pdf`, and `.fig` formats.
 
-```matlab
-run_all_and_zip('demo')
-run_all_and_zip('full')
-```
-
-To regenerate figures from an **existing corrected-version** `results/mimo_full_results.mat` without rerunning the simulation:
+## MATLAB Command Window
 
 ```matlab
-rebuild_figures_and_zip('full')
+cd('/MATLAB Drive');
+repoDir = fullfile(pwd,'mimo_corrected');
+if ~isfolder(repoDir)
+    [status,msg] = system(sprintf('git clone https://github.com/tydeptrai21042004/matlab.git "%s"',repoDir));
+else
+    [status,msg] = system(sprintf('git -C "%s" pull --ff-only',repoDir));
+end
+assert(status==0,'Git operation failed: %s',msg);
+cd(fullfile(repoDir,'code'));
+zipFile = run_all_and_zip('full');
+disp(zipFile);
 ```
 
-`MIMO_ALL_RESULTS_FULL.zip` appears in the project root after a successful full run. Its contents are verified as nonempty and in valid PNG/PDF formats.
+For old MAT results, use `rebuild_figures_and_zip('full')` **only** to
+regenerate figures; it cannot improve Monte Carlo precision. If the new
+40M-bit budget is required, run `run_all_and_zip('full')` again.
 
-## Limitations
+## Verification caveat
 
-- MATLAB is not installed in the environment used to prepare these files. Do an actual `demo` test followed by a `full` run on your MATLAB installation.
-- The software package is not a substitute for the required original report, slide PDF, presentation video, and proper disclosure of external/AI assistance under the assignment.
+MATLAB is not installed in the code-preparation container. The code and
+file packaging were inspected statically, not executed in MATLAB. Run a
+demo smoke test then the full simulation and inspect all generated figures.

@@ -82,7 +82,7 @@ function r = simulate_mimo_ber(p)
                         mod(nBlocks,p.checkEveryBlocks) == 0 && ...
                         all(errors >= p.minErrors)
                     berNow = errors/totalBits;
-                    seNow = cluster_se(errors,sumErrorSquared, ...
+                    seNow = mimo_cluster_se(errors,sumErrorSquared, ...
                         sumErrorTimesBits,sumBitSquared,totalBits,nBlocks);
                     relNow = (1.96*seNow)./max(berNow,realmin);
                     if all(relNow <= p.targetRelHalfWidth)
@@ -92,7 +92,7 @@ function r = simulate_mimo_ber(p)
             end
 
             ber = errors/totalBits;
-            se = cluster_se(errors,sumErrorSquared,sumErrorTimesBits, ...
+            se = mimo_cluster_se(errors,sumErrorSquared,sumErrorTimesBits, ...
                 sumBitSquared,totalBits,nBlocks);
             lower95 = max(0,ber-1.96*se);
             upper95 = min(1,ber+1.96*se);
@@ -134,14 +134,4 @@ function r = simulate_mimo_ber(p)
             end
         end
     end
-end
-
-function se = cluster_se(errors,sumE2,sumEN,sumN2,nBits,nBlocks)
-    if nBlocks < 2 || nBits == 0
-        se = NaN(size(errors));
-        return;
-    end
-    ber = errors/nBits;
-    residualSumSquares = sumE2-2*ber.*sumEN+ber.^2*sumN2;
-    se = sqrt(nBlocks/(nBlocks-1)*max(0,residualSumSquares))/nBits;
 end

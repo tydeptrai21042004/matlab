@@ -23,9 +23,9 @@ Outputs in project root:
     results/ber_target_snr_summary.csv
     results/interpretation_notes.txt
     results/run_log_full.txt
-    figures/8 x PNG (300 dpi)
-    figures/8 x PDF (vector if supported)
-    figures/8 x FIG (editable native MATLAB figures)
+    figures/11 x PNG (300 dpi)
+    figures/11 x PDF (vector 2D / image 3D)
+    figures/11 x FIG (editable native MATLAB figures)
 
 To REBUILD ONLY FIGURES from a corrected-code MAT result:
     rebuild_figures_and_zip('full')
@@ -68,13 +68,16 @@ The full run uses:
     p.minBlocks = 2000 (INDEPENDENT Rayleigh fades per SNR/config)
     p.minErrors = 200 (desired in EACH detector)
     p.targetRelHalfWidth = 0.20 (95% CI relative half-width target)
-    p.maxBits = 16000000 (per SNR/config, maximum budget)
+    p.maxBits = 40000000 (per SNR/config, maximum budget)
 
 The algorithm can stop early only after sufficient fades, enough errors
 and a confidence-interval width check, or at the bit budget. CI/SE use
 independent fading blocks as clusters (not iid transmitted bits).
 If the budget is exhausted with unresolved precision, output flags say so.
-Even 16M bits cannot guarantee statistical precision for arbitrarily low BER.
+The 3D figures show measured curves at Nr=4,5,6 (no interpolated surface).
+The 2D BER vertical limit is chosen from each figure's positive measured data.
+The model enforces BPSK per-stream Es=1 throughout.
+Even 40M bits cannot guarantee statistical precision for arbitrarily low BER.
 
 FIGURE EXPORT FIX
 -----------------
@@ -97,11 +100,12 @@ code/run_mimo_project.m       Self-test, simulation, export, plotting
 code/mimo_parameters.m        Central simulation profile
 code/mimo_filters.m           ZF/MMSE/MRC matrices
 code/mimo_post_sinr.m         Per-stream SINR
+code/mimo_cluster_se.m        Independent-fade cluster SE
 code/simulate_mimo_ber.m      Monte Carlo, block-aware uncertainty
 code/zf_bpsk_theory.m         Analytical ZF BER
 code/estimate_snr_threshold.m BER threshold interpolation
 code/export_mimo_results.m   MAT/CSV and interpretation notes
-code/plot_mimo_results.m     Eight results figures
+code/plot_mimo_results.m     Eight 2D + three 3D results figures
 code/export_figure_checked.m Verified PNG/PDF/FIG export
 code/validate_mimo_outputs.m Checks file count, length, signatures
 code/package_mimo_results.m Verified result ZIP

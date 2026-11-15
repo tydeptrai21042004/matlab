@@ -1,5 +1,5 @@
 function plot_mimo_results(r,rootDir)
-% PLOT_MIMO_RESULTS  Eight 2D figures and three 3D figures, checked exports.
+% PLOT_MIMO_RESULTS  Eight 2D figures and three 3D measured-data plots.
 % Author(s): [Insert authors and student IDs before submission].
 
     p = r.p;
@@ -80,13 +80,13 @@ function plot_mimo_results(r,rootDir)
     set(gca,'FontSize',11,'FontName','Arial','LineWidth',0.9, ...
         'TickDir','out','GridAlpha',0.15);
     xlabel('E_s/N_0 per transmit stream (dB)');
-    ylabel('Average instantaneous post-filter SINR (dB)');
+    ylabel('Mean instantaneous SINR (dB; dB-domain average)');
     title(sprintf('Post-filter SINR: MIMO %d x %d',p.Nt,p.NrList(c)));
     legend(h,{'ZF','MMSE','MRC/MF'},'Location','northwest');
     export_figure_checked(fig,figDir,'Fig_PostDetectorSINR');
 
-    % Supplementary 3D landscapes; the original eight 2D plots are retained.
-    plot_3d_ber_landscapes(r,figDir);
+    % Discrete 3D traces use only simulated antenna configurations.
+    plot_3d_ber_landscapes(r,figDir,colors);
 end
 
 function fig = make_figure()
@@ -100,69 +100,89 @@ function fig = make_figure()
 end
 
 function ber_axes(snrDb)
-    grid on; box on;
-    set(gca,'FontSize',11,'FontName','Arial','LineWidth',0.9, ...
-        'TickDir','out','GridAlpha',0.15,'YScale','log');
-    xlabel('E_s/N_0 per transmit stream (dB)');
-    ylabel('Bit error rate (BER)');
-    xlim([snrDb(1),snrDb(end)]);
-    ylim([1e-7,1]);
+% Adapt the log axis to measured positive BER while preserving the 1e0 top.
+% Never create an artificial BER floor for zero observed errors.
+    ax = gca;
+    grid(ax,'on');
+    box(ax,'on');
+    set(ax,'FontSize',11,'FontName','Arial','LineWidth',0.9, ...
+        'TickDir','out','GridAlpha',0.14,'YScale','log', ...
+        'YMinorGrid','off','XMinorGrid','off');
+    xlabel(ax,'E_s/N_0 per transmit stream (dB)');
+    ylabel(ax,'Bit error rate (BER)');
+    xlim(ax,[snrDb(1),snrDb(end)]);
+    set(ax,'XTick',unique([snrDb(1):4:snrDb(end),snrDb(end)]));
+
+    drawnLines = findobj(ax,'Type','line');
+    positiveValues = [];
+    for k = 1:numel(drawnLines)
+        y = get(drawnLines(k),'YData');
+        y = y(isfinite(y) & y>0);
+        positiveValues = [positiveValues;y(:)]; %#ok<AGROW>
+    end
+    if isempty(positiveValues)
+        ylim(ax,[1e-5,1]);
+    else
+        bottom = 10^floor(log10(min(positiveValues)));
+        ylim(ax,[min(bottom,0.1),1]);
+    end
 end
 
-
-function plot_3d_ber_landscapes(r,figDir)
-% 3D view of actual measured BER on the sampled SNR and Nr grid.
-% A measured BER=0 means no error was observed, not perfect reliability.
-% Leave such points missing rather than inventing a numerical BER floor.
+function plot_3d_ber_landscapes(r,figDir,colors)
+% Actual measured data only: one curve for each integer receive-antenna
+% configuration. There is no interpolation across untested antenna counts.
+% A zero observed BER is omitted, not replaced with a fictitious floor.
 
     p = r.p;
-    [snrGrid,nrGrid] = meshgrid(p.snrDb,p.NrList);
-
+    lineStyles = {'-o','--s','-.^'};
+    nConfigs = numel(p.NrList);
     for m = 1:numel(r.methods)
-        % r.ber has dimensions [detector, SNR, receive configuration].
-        berGrid = squeeze(r.ber(m,:,:)).';
-        valid = isfinite(berGrid) & berGrid > 0;
-        if ~any(valid(:))
+        values = squeeze(r.ber(m,:,:));  % [nSNR x nConfigs]
+        measured = values(isfinite(values) & values>0);
+        if isempty(measured)
             warning('MIMO:EmptyBERLandscape', ...
-                'Skipping 3D %s: no positive measured BER values.',r.methods{m});
+                'No positive BER values for %s.',r.methods{m});
             continue;
         end
 
-        logBer = NaN(size(berGrid));
-        logBer(valid) = log10(berGrid(valid));
-        zLower = min(-5,floor(min(logBer(valid))));
-
+        bottom = floor(log10(min(measured)));
         fig = make_figure();
         ax = axes('Parent',fig);
         hold(ax,'on');
-        surf(ax,snrGrid,nrGrid,logBer,logBer, ...
-            'FaceColor','interp','EdgeColor',[0.48 0.53 0.57], ...
-            'LineWidth',0.45);
-        scatter3(ax,snrGrid(valid),nrGrid(valid),logBer(valid), ...
-            12,[0.12 0.17 0.21],'filled');
+        h = gobjects(1,nConfigs);
+        labels = cell(1,nConfigs);
 
-        colormap(ax,parula(128));
-        caxis(ax,[zLower 0]);
-        cb = colorbar(ax);
-        cb.Label.String = 'log_{10}(BER)';
+        for c = 1:nConfigs
+            curve = squeeze(r.ber(m,:,c));
+            z = NaN(size(curve));
+            good = isfinite(curve) & curve>0;
+            z(good) = log10(curve(good));
+            y = p.NrList(c)*ones(size(p.snrDb));
+            sty = lineStyles{mod(c-1,numel(lineStyles))+1};
+            color = colors{mod(c-1,numel(colors))+1};
+            h(c) = plot3(ax,p.snrDb,y,z,sty, ...
+                'Color',color,'LineWidth',2.1,'MarkerSize',5.8, ...
+                'MarkerFaceColor','w');
+            labels{c} = sprintf('N_r = %d',p.NrList(c));
+        end
 
-        xlabel(ax,'E_s/N_0 per transmit stream (dB)');
+        xlabel(ax,'E_s/N_0 (dB)');
         ylabel(ax,'Receive antennas N_r');
         zlabel(ax,'log_{10}(BER)');
-        title(ax,sprintf('%s: BER versus SNR and receive antennas', ...
-            r.methods{m}),'FontWeight','normal');
+        title(ax,sprintf('%s: BER versus SNR and N_r',r.methods{m}), ...
+            'FontWeight','normal');
 
         xlim(ax,[p.snrDb(1),p.snrDb(end)]);
-        ylim(ax,[min(p.NrList),max(p.NrList)]);
-        zlim(ax,[zLower 0]);
-        set(ax,'YTick',p.NrList,'FontName','Arial', ...
-            'FontSize',11,'LineWidth',0.9,'GridAlpha',0.16, ...
-            'TickDir','out');
-        view(ax,-52,28);
+        ylim(ax,[min(p.NrList)-0.15,max(p.NrList)+0.15]);
+        zlim(ax,[min(bottom,-1),0]);
+        set(ax,'XTick',unique([p.snrDb(1):4:p.snrDb(end),p.snrDb(end)]), ...
+            'YTick',p.NrList,'ZTick',min(bottom,-1):0, ...
+            'FontName','Arial','FontSize',11,'LineWidth',0.9, ...
+            'GridAlpha',0.15,'TickDir','out');
+        view(ax,-50,25);
         grid(ax,'on');
         box(ax,'on');
-        % Surface cells between adjacent measured Nr values are visual
-        % connections only; no additional antenna configurations were run.
+        legend(ax,h,labels,'Location','northeast');
         export_figure_checked(fig,figDir, ...
             sprintf('Fig_3D_%s_BERLandscape',r.methods{m}));
     end
