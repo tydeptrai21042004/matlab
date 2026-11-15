@@ -41,7 +41,7 @@ function results = run_mimo_project(profile)
 
     fprintf('\nBER target %.1e: interpolated SNR thresholds (dB)\n',p.targetBER);
     disp(summaryTable(:,{'Nr','Detector','RequiredEsN0_dB'}));
-    fprintf('PASS: all 8 PNG, all 8 PDF, all 8 FIG files verified.\n');
+    fprintf('PASS: all 11 PNG, all 11 PDF, all 11 FIG files verified.\n');
     fprintf('Data folder: %s\nFigure folder: %s\n',resultDir,figureDir);
     if strcmp(p.profile,'demo')
         fprintf('WARNING: demo results are NOT for the final report.\n');

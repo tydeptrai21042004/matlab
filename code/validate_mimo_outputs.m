@@ -14,13 +14,15 @@ function validate_mimo_outputs(rootDir,profile)
         check_size(fullfile(dataDir,requiredData{k}),30);
     end
 
-    stems = cell(1,8);
+    stems = cell(1,11);
     for c = 1:3
         stems{c} = sprintf('Fig_Detectors_%dx%d',p.Nt,p.NrList(c));
     end
     stems(4:8) = {'Fig_ZF_AntennaComparison', ...
         'Fig_MMSE_AntennaComparison','Fig_MRC_AntennaComparison', ...
         'Fig_ZF_TheoryValidation','Fig_PostDetectorSINR'};
+    stems(9:11) = {'Fig_3D_ZF_BERLandscape', ...
+        'Fig_3D_MMSE_BERLandscape','Fig_3D_MRC_BERLandscape'};
 
     for k = 1:numel(stems)
         png = fullfile(figDir,[stems{k},'.png']);
