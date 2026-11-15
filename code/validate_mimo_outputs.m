@@ -1,6 +1,7 @@
 function validate_mimo_outputs(rootDir,profile)
-% VALIDATE_MIMO_OUTPUTS  Stop packaging if results/figures are absent or empty.
+% VALIDATE_MIMO_OUTPUTS  Check all expected result files and figure formats.
 % Author(s): [Insert authors and student IDs before submission].
+% PDF validation accepts a header within 1024 bytes and checks for %%EOF.
 
     if nargin<2, profile='full'; end
     p = mimo_parameters(profile);
@@ -31,8 +32,8 @@ function validate_mimo_outputs(rootDir,profile)
         check_size(png,100);
         check_size(pdf,100);
         check_size(fig,100);
-        check_magic(png,uint8([137 80 78 71 13 10 26 10]));
-        check_magic(pdf,uint8([37 80 68 70 45]));
+        check_magic(png,'png');
+        check_magic(pdf,'pdf');
     end
     fprintf('PASS: %d verified figures with PNG, PDF and FIG versions.\n',numel(stems));
 end
@@ -44,12 +45,44 @@ function check_size(path,smallest)
     end
 end
 
-function check_magic(path,expected)
-    fid = fopen(path,'rb');
-    if fid<0, error('Cannot read %s',path); end
-    c = onCleanup(@() fclose(fid)); %#ok<NASGU>
-    actual = fread(fid,numel(expected),'uint8')';
-    if ~isequal(actual,expected)
-        error('MIMO:InvalidImage','Invalid image format: %s',path);
+function check_magic(path,kind)
+    % Retry briefly for freshly copied files in MATLAB Drive.
+    for attempt = 1:10
+        if signature_ok(path,kind), return; end
+        pause(0.2);
     end
+    fid = fopen(path,'rb');
+    if fid >= 0
+        b = fread(fid,16,'*uint8')';
+        fclose(fid);
+        firstBytes = sprintf('%02X ',b);
+    else
+        firstBytes = '(file cannot be opened)';
+    end
+    error('MIMO:InvalidImage', ...
+        'Invalid %s file: %s\nFirst bytes (hex): %s', ...
+        upper(kind),path,firstBytes);
+end
+
+function ok = signature_ok(path,kind)
+    ok = false;
+    fid = fopen(path,'rb');
+    if fid < 0, return; end
+    cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
+    if strcmp(kind,'png')
+        b = fread(fid,8,'*uint8')';
+        ok = isequal(b,uint8([137 80 78 71 13 10 26 10]));
+        return;
+    end
+    fseek(fid,0,'eof');
+    bytes = ftell(fid);
+    if bytes < 100, return; end
+    fseek(fid,0,'bof');
+    head = fread(fid,min(bytes,1024),'*uint8')';
+    if isempty(strfind(char(head),'%PDF-')) %#ok<STREMP>
+        return;
+    end
+    fseek(fid,max(0,bytes-4096),'bof');
+    tail = fread(fid,Inf,'*uint8')';
+    ok = ~isempty(strfind(char(tail),'%%EOF')); %#ok<STREMP>
 end

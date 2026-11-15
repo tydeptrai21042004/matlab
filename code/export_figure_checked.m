@@ -1,23 +1,20 @@
 function export_figure_checked(fig,folder,stem)
-% EXPORT_FIGURE_CHECKED  Robust PNG/PDF export for MATLAB Online and R2018+.
+% EXPORT_FIGURE_CHECKED  Export PNG/PDF/FIG and verify binary signatures.
 % Author(s): [Insert authors and student IDs before submission].
-% Exportgraphics (R2020a+) is preferred; print/saveas are fallbacks.
-% Each file is checked for nonzero content AND its expected magic bytes.
-% A failed export causes an error; an empty figure can never be zipped as OK.
+% Uses a local temporary export before copying to MATLAB Drive.
+% For 3D surfaces, PDF is rasterized at 300 dpi to avoid huge vector PDFs.
 
     if ~exist(folder,'dir'), mkdir(folder); end
     drawnow;
     set(fig,'PaperPositionMode','auto');
-    pngPath = fullfile(folder,[stem,'.png']);
-    pdfPath = fullfile(folder,[stem,'.pdf']);
 
     try
-        write_one(fig,pngPath,'png');
-        write_one(fig,pdfPath,'pdf');
+        write_one(fig,fullfile(folder,[stem,'.png']),'png',false);
+        is3D = strncmp(stem,'Fig_3D_',7);
+        write_one(fig,fullfile(folder,[stem,'.pdf']),'pdf',is3D);
         savefig(fig,fullfile(folder,[stem,'.fig']));
         fprintf('Saved checked figure: %s (.png/.pdf/.fig)\n',stem);
     catch ME
-        % Retain figure for inspection if either image export failed.
         try
             savefig(fig,fullfile(folder,[stem,'_RECOVERY.fig']));
         catch
@@ -28,88 +25,119 @@ function export_figure_checked(fig,folder,stem)
     close(fig);
 end
 
-function write_one(fig,filePath,kind)
-    [folder,name,ext] = fileparts(filePath);
-    tempPath = fullfile(folder,[name,'__writing',ext]);
-    if exist(filePath,'file'), delete(filePath); end
-    if exist(tempPath,'file'), delete(tempPath); end
+function write_one(fig,targetPath,kind,is3D)
+% Generate locally first, verify, then atomically rename in target folder.
+    scratchDir = tempname(tempdir);
+    mkdir(scratchDir);
+    cleaner = onCleanup(@() remove_scratch(scratchDir)); %#ok<NASGU>
+    [targetFolder,name,ext] = fileparts(targetPath);
+    localPath = fullfile(scratchDir,['mimo_export',ext]);
+    stagedPath = fullfile(targetFolder,[name,'__verified_write',ext]);
+    lastMessage = 'no export attempt was successful';
 
-    lastMessage = 'no exporter succeeded';
     for method = 1:3
-        if exist(tempPath,'file'), delete(tempPath); end
+        if exist(localPath,'file'), delete(localPath); end
+        if exist(stagedPath,'file'), delete(stagedPath); end
         try
             drawnow;
-            pause(0.10);
             switch method
                 case 1
                     if exist('exportgraphics','file') == 0
-                        error('exportgraphics unavailable on this MATLAB release');
+                        error('exportgraphics unavailable.');
                     end
                     if strcmp(kind,'png')
-                        exportgraphics(fig,tempPath,'Resolution',300);
+                        exportgraphics(fig,localPath,'Resolution',300);
+                    elseif is3D
+                        exportgraphics(fig,localPath, ...
+                            'ContentType','image','Resolution',300);
                     else
-                        exportgraphics(fig,tempPath,'ContentType','vector');
+                        exportgraphics(fig,localPath,'ContentType','vector');
                     end
                 case 2
                     if strcmp(kind,'png')
-                        print(fig,tempPath,'-dpng','-r300');
+                        print(fig,localPath,'-dpng','-r300');
+                    elseif is3D
+                        print(fig,localPath,'-dpdf','-opengl','-r300');
                     else
-                        print(fig,tempPath,'-dpdf','-painters');
+                        print(fig,localPath,'-dpdf','-painters');
                     end
                 case 3
-                    saveas(fig,tempPath,kind);
+                    saveas(fig,localPath,kind);
             end
-            if wait_for_complete_file(tempPath,kind)
-                [moved,message] = movefile(tempPath,filePath,'f');
-                if ~moved
-                    error('Move failed: %s',message);
-                end
-                if wait_for_complete_file(filePath,kind)
-                    return;
-                end
-                error('Final file is missing or invalid after moving.');
-            else
-                error('File was empty, truncated, or had an invalid signature');
+
+            if ~wait_valid(localPath,kind)
+                error('Exporter created an incomplete or invalid %s file.',kind);
             end
+
+            [copied,message] = copyfile(localPath,stagedPath,'f');
+            if ~copied, error('Could not stage output: %s',message); end
+            if ~wait_valid(stagedPath,kind)
+                error('Invalid %s after copying to output folder.',kind);
+            end
+
+            [moved,message] = movefile(stagedPath,targetPath,'f');
+            if ~moved, error('Could not finalize output: %s',message); end
+            if ~wait_valid(targetPath,kind)
+                error('Invalid %s after final rename in output folder.',kind);
+            end
+            return;
         catch ME
             lastMessage = ME.message;
-            fprintf('  %s export method %d failed: %s\n',kind,method,lastMessage);
+            fprintf('  %s export attempt %d failed: %s\n', ...
+                upper(kind),method,lastMessage);
         end
     end
-    if exist(tempPath,'file'), delete(tempPath); end
+
+    if exist(stagedPath,'file'), delete(stagedPath); end
     error('MIMO:FigureExportFailed', ...
-        'Could not export a VALID %s file: %s\nLast error: %s', ...
-        kind,filePath,lastMessage);
+        'Could not produce a valid %s at %s. Last error: %s', ...
+        upper(kind),targetPath,lastMessage);
 end
 
-function ok = wait_for_complete_file(filePath,kind)
+function ok = wait_valid(filePath,kind)
+% MATLAB Drive can take a moment to make copied files readable.
     ok = false;
     previousSize = -1;
-    for attempt = 1:8
-        drawnow;
+    for attempt = 1:12
         d = dir(filePath);
-        if ~isempty(d) && d(1).bytes >= 100 && d(1).bytes == previousSize
-            if signature_correct(filePath,kind)
-                ok = true;
-                return;
+        if ~isempty(d) && d(1).bytes >= 100
+            if file_signature_ok(filePath,kind)
+                if d(1).bytes == previousSize || attempt >= 3
+                    ok = true;
+                    return;
+                end
             end
+            previousSize = d(1).bytes;
         end
-        if ~isempty(d), previousSize = d(1).bytes; end
         pause(0.15);
     end
 end
 
-function ok = signature_correct(filePath,kind)
+function ok = file_signature_ok(filePath,kind)
     ok = false;
     fid = fopen(filePath,'rb');
-    if fid<0, return; end
+    if fid < 0, return; end
     cleaner = onCleanup(@() fclose(fid)); %#ok<NASGU>
     if strcmp(kind,'png')
-        actual = fread(fid,8,'uint8')';
-        expected = uint8([137 80 78 71 13 10 26 10]);
-    else
-        actual = fread(fid,5,'uint8')';
-        expected = uint8([37 80 68 70 45]); % '%PDF-'
+        data = fread(fid,8,'*uint8')';
+        ok = isequal(data,uint8([137 80 78 71 13 10 26 10]));
+        return;
     end
-    ok = isequal(actual,expected);
+
+    % A valid PDF header is allowed within the first 1024 bytes.
+    fseek(fid,0,'eof');
+    bytes = ftell(fid);
+    if bytes < 100, return; end
+    fseek(fid,0,'bof');
+    head = fread(fid,min(1024,bytes),'*uint8')';
+    if isempty(strfind(char(head),'%PDF-')) %#ok<STREMP>
+        return;
+    end
+    fseek(fid,max(0,bytes-4096),'bof');
+    tail = fread(fid,Inf,'*uint8')';
+    ok = ~isempty(strfind(char(tail),'%%EOF')); %#ok<STREMP>
+end
+
+function remove_scratch(folder)
+    if exist(folder,'dir'), rmdir(folder,'s'); end
 end
